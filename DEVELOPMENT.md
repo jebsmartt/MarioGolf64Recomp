@@ -244,4 +244,52 @@ The project currently builds a stub executable that links all dependencies. The 
 9. **Controller input** — verify NuSystem controller polling maps onto ultramodern input
 10. **Save data** — verify SRAM reads/writes work correctly via librecomp
 
+---
+
+# Session Notes (2026-03-18)
+## What was completed
+### RSP microcode (aspMain)
+Mario Golf uses Nintendo's audio DSP (aspMain) for RSP audio tasks. The ucode was located in the ROM at offset 0x0008F250 (text size 0x193C, IMEM text address 0x04001080). RSPRecomp required three fixes to handle Mario Golf's ucode:
+
+- Added DPC_START, DPC_END, DPC_CURRENT to the mfc0 handler (previously only DPC_STATUS was handled)
+- Added DPC_START, DPC_END, DPC_CURRENT, DPC_STATUS to the mtc0 handler
+- Added cfc2 handler (reads VCO/VCC/VCE control registers — returns 0 for audio ucode)
+
+The ucode contains jumps to low IMEM addresses (0x0014, 0x0108, etc.) that correspond to rspboot — a separately-loaded RSP initialization stub. These are declared as extra_indirect_branch_targets in rsp/aspMain.toml and emit UnhandledJumpTarget stubs in the generated C. This is acceptable since rspboot execution is handled by ultramodern's RSP task infrastructure, not the recompiled ucode path.
+Mario Golf does not use njpgdspMain (JPEG decoder). The get_rsp_microcode callback only handles M_AUDTASK.
+RSPRecomp fixes are committed to the mariogolf branch of N64Recomp. The generated rsp/aspMain.cpp is in MarioGolf64Recomp/rsp/.
+
+### Build state
+The executable builds cleanly and runs to the ultramodern renderer check:
+
+```bash
+SDL Video Driver: x11
+[Error] The mandatory render callback `create_render_context` was not registered
+```
+SDL2 initializes successfully. The renderer callback is the immediate next blocker.
+
+### SSE4.1
+librecomp/rsp_vu_impl.hpp uses SSE4.1 intrinsics. Added -msse4.1 to target_compile_options in CMakeLists.txt.
+
+## Key files changed this session
+| Repo | File | Change |
+|------|------|--------|
+| N64Recomp (mariogolf) | RSPRecomp/src/rsp_recomp.cpp | Added DPC COP0 register handlers and cfc |
+| N64Recomp (mariogolf) | rsp/aspMain.toml | RSPRecomp config for Mario Golf audio ucode |
+| MarioGolf64Recomp     | rsp/aspMain.cpp  | Generated audio RSP ucode (135KB) |
+| MarioGolf64Recomp     | src/main.cpp     | Wired aspMain, stub input callbacks, GameEntry |
+| MarioGolf64Recomp     | CMakeLists.txt   | Added rsp/aspMain.cpp, SSE4.1 flag |
+
+## Next Steps (revised)
+The project builds and runs to the ultramodern renderer check. The following work is needed to reach a running state:
+
+RT64 renderer integration — implement RT64RendererContext, a class inheriting ultramodern::renderer::RendererContext that wraps RT64. This is the primary remaining blocker. Reference: Zelda64Recomp/src/main/zelda_render.cpp.
+ROM loading — implement PI DMA / ROM read callbacks so the game can load assets from the ROM file
+Thread model — verify NuSystem's thread/scheduler assumptions map onto ultramodern
+First boot — get the game to reach its initialization code without crashing
+Graphics output — verify RDP command lists are being processed by RT64
+Audio output — verify audio tasks are executing and samples are playing back via SDL2
+Controller input — verify NuSystem controller polling maps onto ultramodern input
+Save data — verify SRAM reads/writes work correctly via librecomp
+
 Reference implementation: [Zelda64Recomp](https://github.com/Zelda64Recomp/Zelda64Recomp) — particularly `src/main.cpp` and the platform callback implementations.
