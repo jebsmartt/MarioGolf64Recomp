@@ -35,6 +35,7 @@ message(STATUS "Found ${CMAKE_CURRENT_LIST_DIR} recomp sources")
 
 # Main executable
 add_executable(MarioGolf64Recomp
+    rsp/aspMain.cpp
     src/main.cpp
     ${RECOMP_SOURCES}
 )
@@ -50,6 +51,8 @@ target_include_directories(MarioGolf64Recomp PRIVATE
     ${RECOMP_OUTPUT}
 )
 
+target_compile_options(MarioGolf64Recomp PRIVATE -msse4.1)
+
 target_link_libraries(MarioGolf64Recomp PRIVATE
     librecomp
     rt64
@@ -57,7 +60,9 @@ target_link_libraries(MarioGolf64Recomp PRIVATE
 
 # Linux-specific
 if(UNIX AND NOT APPLE)
-    target_link_libraries(MarioGolf64Recomp PRIVATE
+    target_compile_options(MarioGolf64Recomp PRIVATE -msse4.1)
+
+target_link_libraries(MarioGolf64Recomp PRIVATE
         "-latomic"
         ${CMAKE_DL_LIBS}
         Threads::Threads
