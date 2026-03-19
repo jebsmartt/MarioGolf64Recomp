@@ -31,6 +31,12 @@ void exit_error(const char* str, Ts ...args) {
 
 // ─── Graphics ────────────────────────────────────────────────────────────────
 
+// Forward declaration from render.cpp
+std::unique_ptr<ultramodern::renderer::RendererContext>
+create_render_context(uint8_t* rdram,
+                      ultramodern::renderer::WindowHandle window_handle,
+                      bool developer_mode);
+
 SDL_Window* window;
 
 ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
@@ -67,6 +73,12 @@ void update_gfx(void*) {
             ultramodern::error_handling::quick_exit(__FILE__, __LINE__, __FUNCTION__);
         }
     }
+}
+
+void on_gfx_init() {
+    fprintf(stdout, "GFX initialized, starting game\n");
+    fflush(stdout);
+    recomp::start_game(u8"mariogolf.n64.us.1.0");
 }
 
 // ─── Audio ───────────────────────────────────────────────────────────────────
@@ -168,6 +180,8 @@ size_t get_frames_remaining() {
 extern RspUcodeFunc aspMain;
 
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
+    fprintf(stdout, "RSP task type: %u\n", task->t.type);
+    fflush(stdout);
     switch (task->t.type) {
     case M_AUDTASK:
         return aspMain;
@@ -202,7 +216,7 @@ gpr get_entrypoint_address() { return (gpr)(int32_t)0x80025C50u; }
 
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash          = 0xA1D0890B6B6AE155ULL,
+        .rom_hash          = 0xC44360A904011B02ULL,
         .internal_name     = "MarioGolf64",
         .game_id           = u8"mariogolf.n64.us.1.0",
         .mod_game_id       = "mariogolf",
@@ -235,7 +249,7 @@ int main(int argc, char** argv) {
     };
 
     ultramodern::renderer::callbacks_t renderer_callbacks{
-        .create_render_context = nullptr, // TODO: wire up RT64
+        .create_render_context = create_render_context,
     };
 
     ultramodern::gfx_callbacks_t gfx_callbacks{
@@ -256,16 +270,26 @@ int main(int argc, char** argv) {
         .set_rumble = set_rumble,
     };
 
-    recomp::Configuration cfg{
-        .project_version          = { 0, 1, 0 },
-        .rsp_callbacks            = rsp_callbacks,
-        .renderer_callbacks       = renderer_callbacks,
-        .audio_callbacks          = audio_callbacks,
-        .input_callbacks          = input_callbacks,
-        .gfx_callbacks            = gfx_callbacks,
+    ultramodern::events::callbacks_t events_callbacks{
+    .gfx_init_callback = on_gfx_init,
     };
 
-    recomp::start(cfg);
+    recomp::Configuration cfg{
+        .project_version    = { 0, 1, 0 },
+        .rsp_callbacks      = rsp_callbacks,
+        .renderer_callbacks = renderer_callbacks,
+        .audio_callbacks    = audio_callbacks,
+        .input_callbacks    = input_callbacks,
+        .events_callbacks   = events_callbacks,
+        .gfx_callbacks      = gfx_callbacks,
+    };
 
+    recomp::register_config_path("/home/jebsmartt/repos/mariogolf_recomp/MarioGolf64Recomp");
+    recomp::check_all_stored_roms();
+    std::u8string game_id = u8"mariogolf.n64.us.1.0";
+    fprintf(stdout, "ROM valid: %s\n", recomp::is_rom_valid(game_id) ? "yes" : "no");
+    fprintf(stdout, "Starting game...\n");
+    fflush(stdout);
+    recomp::start(cfg);
     return EXIT_SUCCESS;
 }
