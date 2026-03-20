@@ -37,6 +37,8 @@ message(STATUS "Found ${CMAKE_CURRENT_LIST_DIR} recomp sources")
 add_executable(MarioGolf64Recomp
     rsp/aspMain.cpp
     src/main.cpp
+    src/overlays.cpp
+    src/render.cpp
     ${RECOMP_SOURCES}
 )
 

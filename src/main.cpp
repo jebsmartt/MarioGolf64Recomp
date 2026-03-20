@@ -211,8 +211,8 @@ void set_rumble(int controller_num, bool on) {
 
 // ─── Entrypoint ──────────────────────────────────────────────────────────────
 
-extern "C" void static_6_80025C50(uint8_t* rdram, recomp_context* ctx);
-gpr get_entrypoint_address() { return (gpr)(int32_t)0x80025C50u; }
+extern "C" void entry_TEXT_START(uint8_t* rdram, recomp_context* ctx);
+gpr get_entrypoint_address() { return (gpr)(int32_t)0x80025C00u; }
 
 std::vector<recomp::GameEntry> supported_games = {
     {
@@ -224,7 +224,11 @@ std::vector<recomp::GameEntry> supported_games = {
         .is_enabled        = true,
         .has_compressed_code = false,
         .entrypoint_address = get_entrypoint_address(),
-        .entrypoint        = static_6_80025C50,
+        .entrypoint        = entry_TEXT_START,
+        .on_init_callback = [](uint8_t* rdram, recomp_context* ctx) {
+            fprintf(stdout, "Game entrypoint called\n");
+            fflush(stdout);
+        },
     },
 };
 
@@ -287,9 +291,16 @@ int main(int argc, char** argv) {
     recomp::register_config_path("/home/jebsmartt/repos/mariogolf_recomp/MarioGolf64Recomp");
     recomp::check_all_stored_roms();
     std::u8string game_id = u8"mariogolf.n64.us.1.0";
+
     fprintf(stdout, "ROM valid: %s\n", recomp::is_rom_valid(game_id) ? "yes" : "no");
     fprintf(stdout, "Starting game...\n");
     fflush(stdout);
+
+    // Forward declaration
+    void register_overlays();
+
+    register_overlays();
+
     recomp::start(cfg);
     return EXIT_SUCCESS;
 }

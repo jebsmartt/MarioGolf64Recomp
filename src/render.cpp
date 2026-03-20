@@ -236,7 +236,7 @@ public:
     }
 
     void send_dl(const OSTask* task) override {
-        fprintf(stdout, "send_dl called\n");
+        fprintf(stdout, "send_dl called, task type: %u\n", task->t.type);
         fflush(stdout);
         app->state->rsp->reset();
         app->interpreter->loadUCodeGBI(
